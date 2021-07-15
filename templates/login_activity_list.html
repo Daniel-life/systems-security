@@ -1,0 +1,36 @@
+{% extends 'layout.html' %}
+{% block title %} Login Activity List {% endblock %}
+{% block content %}
+<h2>Login Activity List</h2>
+<div>
+<p>Your account details are below:</p>
+<table>
+    {% for audit in info %}
+    <tr>
+        <td>login time:</td>
+        <td>{{ audit[0] }}</td>
+    </tr>
+    <tr>
+        <td>logout time:</td>
+        <td>{{ audit[1] }}</td>
+    </tr>
+    <tr>
+        <td>City:</td>
+        <td>{{ audit[2] }}</td>
+    </tr>
+    <tr>
+        <td>Country:</td>
+        <td>{{ audit[3] }}</td>
+    </tr>
+    <tr>
+        <td>Continent:</td>
+        <td>{{ audit[4] }}</td>
+    </tr>
+    <tr>
+        <td>Is VPN active?:</td>
+        <td>{{ audit[5] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+</div>
+{% endblock %}
