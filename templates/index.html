@@ -20,7 +20,9 @@
                 <label for="password">
                 <i class="fas fa-lock"></i></label>
                 <input type="password" name="password" placeholder="Password" id="password"
-                required><div class="msg">{{ msg }}</div>
+                required>
+                {{ recaptcha }}
+                <div class="msg">{{ msg }}</div>
                 <a href="{{ url_for('forget_password') }}">Forget password?</a>
                 <input type="submit" value="Login">
             </form>
