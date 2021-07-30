@@ -13,6 +13,7 @@ from flask_mysqldb import MySQL
 from datetime import datetime
 import requests
 import json
+from flask_recaptcha import ReCaptcha
 
 app = Flask(__name__)
 
@@ -27,6 +28,10 @@ app.config['MYSQL_DB'] = 'project'
 
 # Intialize MySQL
 mysql = MySQL(app)
+
+app.config['RECAPTCHA_SITE_KEY'] = '6Lfi_MwbAAAAAECXyZVMZkLAAHTqOB4DNrx2DD4W'  # <-- Add your site key
+app.config['RECAPTCHA_SECRET_KEY'] = '6Lfi_MwbAAAAAE8dmptU0aLblFI6yiV8IAhxw5Ay'  # <-- Add your secret key
+recaptcha = ReCaptcha(app)  # Create a ReCaptcha object by passing in 'app' as parameter
 
 
 # http://localhost:5000/project/ - this will be the login page, we need to use both GET and POST #requests
@@ -43,6 +48,8 @@ def login():
         cursor.execute('SELECT * FROM accounts WHERE username = %s', (username,))
         # Fetch one record and return result
         account = cursor.fetchone()
+        if recaptcha.verify():  # Use verify() method to see if ReCaptcha is filled out
+            msg = ''
         if account:
             # Extract the Symmetric-key from Accounts DB
             key = account['symmetrickey']
@@ -87,7 +94,7 @@ def login():
         else:
             # Account doesn’t exist or username/password incorrect
             msg = 'Incorrect username/password!'
-    return render_template('index.html', msg='')
+    return render_template('index.html', msg=msg)
 
 
 @app.route('/project/submitcode', methods=['GET', 'POST'])
@@ -112,11 +119,12 @@ def submitcode():
                 'country': result['country'],
                 'continent': result['continent'],
                 'is_vpn': result['security']['is_vpn']
-                }
+            }
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             cursor.execute('INSERT INTO AuditInfo VALUES (NULL, %s, %s, %s, %s, %s, %s, %s)',
-                           (session['username'], login, 'did not logout', info['city'], info['country'], info['continent'], info['is_vpn']))
+                           (session['username'], login, 'did not logout', info['city'], info['country'],
+                            info['continent'], info['is_vpn']))
             mysql.connection.commit()
 
             return redirect(url_for('home'))
@@ -179,7 +187,8 @@ def register():
         cursor.execute('INSERT INTO accounts VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s)',
                        (username, firstname, lastname, hash_password, encryptedEmail, gender, address, key))
         mysql.connection.commit()
-        msg = 'You have successfully registered!'
+        if recaptcha.verify():  # Use verify() method to see if ReCaptcha is filled out
+            msg = 'You have successfully registered with ReCaptcha!'
 
     elif request.method == 'POST':
         # Form is empty... (no POST data)
@@ -318,4 +327,4 @@ def change():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
