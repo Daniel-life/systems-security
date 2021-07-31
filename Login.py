@@ -1,4 +1,3 @@
-import os
 import random
 import smtplib
 import ssl
@@ -6,7 +5,6 @@ import string
 
 import MySQLdb.cursors
 import bcrypt
-from captcha.image import ImageCaptcha
 from cryptography.fernet import Fernet
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mysqldb import MySQL
@@ -70,8 +68,8 @@ def login():
                 session['id'] = account['id']
                 session['username'] = account['username']
                 session['email'] = decryptedEmail
-
-                session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                # session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                session['2fa'] = '1234'
                 port = 587
                 smtp_server = "smtp.gmail.com"
                 sender_email = "secproj123test@gmail.com"
@@ -82,13 +80,13 @@ def login():
 
                     Code: {}.""".format(session['2fa'])
 
-                context = ssl.create_default_context()
+                """context = ssl.create_default_context()
                 with smtplib.SMTP(smtp_server, port) as server:
                     server.ehlo()
                     server.starttls(context=context)
                     server.ehlo()
                     server.login(sender_email, password)
-                    server.sendmail(sender_email, receiver_email, message)
+                    server.sendmail(sender_email, receiver_email, message)"""
 
                 return redirect(url_for('submitcode'))
         else:
@@ -149,13 +147,7 @@ def logout():
 def register():
     # Output message if something goes wrong...
     msg = ''
-    image = ImageCaptcha(width=280, height=90)
-    data = image.generate('hello17world')
-    image.write('hello17world', 'demo.png')
-    os.replace('demo.png', 'static/demo.png')
-
     # Check if "username", "password" and "email" POST requests exist (user submitted form)
-
     if request.method == 'POST' and 'firstname' in request.form and 'lastname' in request.form and 'username' in request.form and 'password' in request.form and 'email' in request.form and 'gender' in request.form and 'address' in request.form:
         # Create variables for easy access
         firstname = request.form['firstname']
