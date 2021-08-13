@@ -33,14 +33,26 @@ app.config['RECAPTCHA_SECRET_KEY'] = '6Lfi_MwbAAAAAE8dmptU0aLblFI6yiV8IAhxw5Ay' 
 recaptcha = ReCaptcha(app)  # Create a ReCaptcha object by passing in 'app' as parameter
 
 attempts = 3
+failed_attempts = 0
 fail = False
 
 
-# http://localhost:5000/project/ - this will be the login page, we need to use both GET and POST #requests
 @app.route('/', methods=['GET', 'POST'])
+def base():
+    return render_template('base.html')
+
+
+@app.route('/login_admin', methods=['GET', 'POST'])
+def admin_login():
+    return render_template('admin_index.html')
+
+
+# http://localhost:5000/project/login - this will be the login page, we need to use both GET and POST #requests
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     global fail
     global attempts
+    global failed_attempts
     # Output message if something goes wrong...
     msg = ''
     if not fail:
@@ -77,11 +89,13 @@ def login():
                     session['email'] = decryptedEmail
                     session['number'] = account['number']
 
-                    session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    session['2fa'] = '1234'
+                    # session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
                     return redirect(url_for('email'))
             else:
                 attempts -= 1
+                failed_attempts += 1
                 msg = "Incorrect username/password! Attempts left: %d" % attempts
                 # Account doesn’t exist or username/password incorrect
                 print("you have", attempts, "attempts left.")
@@ -138,15 +152,16 @@ def email():
 @app.route('/project/number', methods=['GET', 'POST'])
 def number():
     if request.method == 'POST':
+        """
         account_sid = 'AC07c0d11530577d396f167e884e17de61'
         auth_token = 'c6dc954f68fac31a0ee7a55b397c7dcb'
         client = Client(account_sid, auth_token)
 
         msg = client.messages.create(
-            to=session['number'],
+            to= session['number'],
             from_="+12512552093",
             body="2FA CODE: {}".format(session['2fa'])
-        )
+        )"""
 
         session['choice'] = 'number'
         return redirect(url_for('submitcode'))
@@ -163,6 +178,7 @@ def submitcode():
         if inputcode.upper() == session['2fa']:
             login = datetime.now().strftime("%X %x")
             session['login'] = login
+            session['failed_attempts'] = failed_attempts
 
             # Your API key, available from your account page
             YOUR_GEOLOCATION_KEY = '3b1399cd7b1947a0a2b8fd3a3f92e285'
@@ -177,13 +193,12 @@ def submitcode():
                 'city': result['city'],
                 'country': result['country'],
                 'continent': result['continent'],
-                'is_vpn': result['security']['is_vpn']
             }
 
             cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
             cursor.execute('INSERT INTO AuditInfo VALUES (NULL, %s, %s, %s, %s, %s, %s, %s)',
                            (session['username'], login, 'did not logout', info['city'], info['country'],
-                            info['continent'], info['is_vpn']))
+                            info['continent'], str(failed_attempts)))
             mysql.connection.commit()
 
             return redirect(url_for('home'))
@@ -326,7 +341,7 @@ def login_activity_list():
     cursor.execute('SELECT * FROM auditinfo WHERE username = %s', (session['username'],))
     auditinfo = cursor.fetchall()
     for i in auditinfo:
-        list_info.append((i['login'], i['logout'], i['city'], i['country'], i['continent'], i['is_vpn']))
+        list_info.append((i['login'], i['logout'], i['city'], i['country'], i['continent'], i['failed_attempts']))
     print(list_info)
 
     return render_template('login_activity_list.html', msg=msg, info=list_info, start="05:00:00", end="23:59:00")

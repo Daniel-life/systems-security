@@ -6,45 +6,43 @@
 <p>Your account details are below:</p>
 <table class="auditinfo">
     {% for audit in info %}
+    {% if start <= audit[0] <= end and audit[3] == "Singapore" %}
     <tr>
         {% if start <= audit[0] <= end %}
-        <td>login time:</td>
-        <td>{{ audit[0] }}</td>
+        <td class="info-left">login time:</td>
+        <td class="info-highlight">{{ audit[0] }}</td>
         {% else %}
         <td style="color: red">login time:</td>
         <td style="color: red">{{ audit[0] }} Suspicious login</td>
         {% endif %}
     </tr>
     <tr>
-        <td>logout time:</td>
-        <td>{{ audit[1] }}</td>
+        <td class="info-left">logout time:</td>
+        <td class="info-highlight">{{ audit[1] }}</td>
     </tr>
     <tr>
-        <td>City:</td>
-        <td>{{ audit[2] }}</td>
+        <td class="info-left">City:</td>
+        <td class="info-highlight">{{ audit[2] }}</td>
     </tr>
     <tr>
         {% if audit[3] == 'Singapore' %}
-        <td>Country:</td>
-        <td>{{ audit[3] }}</td>
+        <td class="info-left">Country:</td>
+        <td class="info-highlight">{{ audit[3] }}</td>
         {% else %}
         <td style="color: red">Country:</td>
         <td style="color: red">{{ audit[3] }} Not from Singapore. is this you?</td>
         {% endif %}
     </tr>
     <tr>
-        <td>Continent:</td>
-        <td>{{ audit[4] }}</td>
+        <td class="info-left">Continent:</td>
+        <td class="info-highlight">{{ audit[4] }}</td>
     </tr>
     <tr>
-        {% if audit[5] == "0" %}
-        <td class="info-left bottom-border">Is VPN active?:</td>
-        <td class="info-highlight bottom-border">No</td>
-        {% else %}
-        <td class="info-left bottom-border">Is VPN active?:</td>
-        <td class="info-highlight bottom-border">Yes</td>
-        {% endif %}
+        <td class="info-left">Failed attempts:</td>
+        <td class="info-highlight">{{ audit[5] }}</td>
     </tr>
+
+    {% endif %}
     {% endfor %}
 </table>
 </div>

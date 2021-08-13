@@ -145,5 +145,12 @@ body.loggedin {
 	padding: 5px;
 	margin: 0 0 10px 0;
 }
+.auditinfo {
+border-collapse: collapse;
+}
+
+.bottom-border {
+border-bottom: 2px dashed black;
+}
 
 
