@@ -1,0 +1,18 @@
+{% extends 'layout.html' %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h2>Home Page</h2>
+<p>Welcome to admin page, {{ username }}!</p>
+<table class="admin">
+    {% for user in user_list %}
+    <tr>
+        <td class="info-left">Username:</td>
+        <td class="info-highlight">{{ user[0] }}</td>
+    </tr>
+    <tr>
+        <td class="info-left">Email:</td>
+        <td class="info-highlight">{{ user[1] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

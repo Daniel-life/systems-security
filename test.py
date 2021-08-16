@@ -1,13 +1,12 @@
-from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
 
-nobj = datetime.now()
-now = nobj.strftime("%H:%M:%S")
+x1 = [1,2,3]
+y1 = [2,4,1]
 
-time_change = timedelta(minutes=30)
-lobj = nobj + time_change
-later = lobj.strftime("%H:%M:%S")
+plt.plot(x1,y1,label = "line 1")
 
-print(now)
-print(later)
-
-print(later <= now)
+plt.xlabel('x - axis')
+plt.ylabel('y - axis')
+plt.title('Testing for stats')
+plt.legend()
+plt.show()

@@ -6,13 +6,14 @@ import string
 import MySQLdb.cursors
 import bcrypt
 from cryptography.fernet import Fernet
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, abort
 from flask_mysqldb import MySQL
 from datetime import datetime, timedelta
 import requests
 import json
 from flask_recaptcha import ReCaptcha
 from twilio.rest import Client
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 # Change this to your secret key (can be anything, it's for extra protection)
@@ -36,15 +37,165 @@ attempts = 3
 failed_attempts = 0
 fail = False
 
-
 @app.route('/', methods=['GET', 'POST'])
 def base():
     return render_template('base.html')
 
 
+@app.route('/register_admin', methods=['GET', 'POST'])
+def register_admin():
+    # Output message if something goes wrong...
+    msg = ''
+    # Check if "username", "password" and "email" POST requests exist (user submitted form)
+
+    if request.method == 'POST' and 'firstname' in request.form and 'lastname' in request.form and 'username' in request.form and 'password' in request.form and 'email' in request.form and 'gender' in request.form and 'address' in request.form and 'number' in request.form:
+        # Create variables for easy access
+        firstname = request.form['firstname']
+        lastname = request.form['lastname']
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        gender = request.form['gender']
+        address = request.form['address']
+        number = request.form['number']
+
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute('SELECT * FROM admin_account WHERE username = %s', (username,))
+        # Fetch one record and return result
+        account = cursor.fetchone()
+        # check if  account exists
+        if account == None:
+            # Password Hashing
+            # Create a random number (Salt)
+            salt = bcrypt.gensalt(rounds=16)
+            # A hashed value is created with hashpw() function, which takes the cleartext value and a salt as parameters.
+            hash_password = bcrypt.hashpw(password.encode(), salt)
+
+            # Symmetric Key Encryption
+            # Generate a random Symmetric key. Keep this key in your database
+            key = Fernet.generate_key()
+
+            # Load the key into the Crypto API
+            f = Fernet(key)
+
+            # Encrypt the email and convert to bytes by calling f.encrypt()
+            encryptedEmail = f.encrypt(email.encode())
+
+            # Insert Salted-hash password get inserted into the Accounts table
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('INSERT INTO admin_account VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                           (username, firstname, lastname, hash_password, encryptedEmail, gender, address, number,
+                            key))
+            mysql.connection.commit()
+            if recaptcha.verify():  # Use verify() method to see if ReCaptcha is filled out
+                msg = 'You have successfully registered with ReCaptcha!'
+        else:
+            msg = 'Username taken!'
+
+    elif request.method == 'POST':
+        # Form is empty... (no POST data)
+        msg = 'Please fill out the form!'
+        # Show registration form with message (if any)
+
+    return render_template('register_admin.html')
+
+
 @app.route('/login_admin', methods=['GET', 'POST'])
-def admin_login():
-    return render_template('admin_index.html')
+def login_admin():
+    global fail
+    global attempts
+    global failed_attempts
+    # Output message if something goes wrong...
+    msg = ''
+    if not fail:
+        # Check if "username" and "password" POST requests exist (user submitted form)
+        if request.method == 'POST' and 'username' in request.form and 'password' in request.form:  # Create variables for easy access
+            username = request.form['username']
+            password = request.form['password']
+            # Check if account exists using MySQL
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM admin_account WHERE username = %s', (username,))
+            # Fetch one record and return result
+            account = cursor.fetchone()
+            if recaptcha.verify():  # Use verify() method to see if ReCaptcha is filled out
+                msg = ''
+            if account:
+                # Extract the Symmetric-key from Accounts DB
+                key = account['symmetrickey']
+                # Load the key
+                f = Fernet(key)
+                # Call f.decrypt() to decrypt the data. Convert data from Database to bytes/binary by using.encode()
+                decryptedEmail_Binary = f.decrypt(account['email'].encode())
+                # call .decode () to convert from Binary to String – to be displayed in Home.html.
+                decryptedEmail = decryptedEmail_Binary.decode()
+                # Extract the Salted-hash password from DB to local variable
+                hashAndSalt = account['password']
+
+                # Convert salted-hash password to bytes by using the .encode() method
+                # bycrypt.checkpw () will verify if the password input by user matches that from the database
+                if bcrypt.checkpw(password.encode(), hashAndSalt.encode()):
+                    # Create session data, we can access this data in other routes
+                    session['loggedin'] = True
+                    session['id'] = account['id']
+                    session['username'] = account['username']
+                    session['email'] = decryptedEmail
+                    session['number'] = account['number']
+                    session['admin'] = True
+
+                    #session['2fa'] = '1234'
+                    session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+                    return redirect(url_for('email'))
+            else:
+                attempts -= 1
+                failed_attempts += 1
+                msg = "Incorrect username/password! Attempts left: %d" % attempts
+                # Account doesn’t exist or username/password incorrect
+                print("you have", attempts, "attempts left.")
+                if attempts <= 0:
+                    fail = True
+                    nobj = datetime.now()
+                    now = nobj.strftime("%H:%M:%S")
+
+                    time_change = timedelta(seconds=10)
+                    lobj = nobj + time_change
+                    later = lobj.strftime("%H:%M:%S")
+                    session['later'] = later
+                    msg = 'you have used the maximum number of attempts to login.'
+    else:
+        nobj = datetime.now()
+        now = nobj.strftime("%H:%M:%S")
+        print(now)
+        print(session['later'])
+        if session['later'] <= now:
+            fail = False
+            attempts = 3
+            msg = ''
+
+    return render_template('index_admin.html', msg=msg, fail=fail)
+
+
+@app.route('/home_admin')
+def home_admin():
+    # Check if user is loggedin
+    if 'loggedin' in session:
+        # User is loggedin show them the home page
+        user_info = []
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute('SELECT * FROM accounts', ())
+        userinfo = cursor.fetchall()
+        for i in userinfo:
+            key = i['symmetrickey']
+            f = Fernet(key)
+            decryptedEmail_Binary = f.decrypt(i['email'].encode())
+            decryptedEmail = decryptedEmail_Binary.decode()
+            user_info.append((i['username'], decryptedEmail))
+        print(user_info)
+
+        return render_template('home_admin.html', username=session['username'],
+                               user_list=user_info)  # User is not loggedin redirect to login page
+
+    return redirect(url_for('login'))
 
 
 # http://localhost:5000/project/login - this will be the login page, we need to use both GET and POST #requests
@@ -88,9 +239,10 @@ def login():
                     session['username'] = account['username']
                     session['email'] = decryptedEmail
                     session['number'] = account['number']
+                    session['admin'] = False
 
-                    session['2fa'] = '1234'
-                    # session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    #session['2fa'] = '1234'
+                    session['2fa'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
                     return redirect(url_for('email'))
             else:
@@ -118,7 +270,6 @@ def login():
             fail = False
             attempts = 3
             msg = ''
-
     return render_template('index.html', msg=msg, fail=fail)
 
 
@@ -152,16 +303,15 @@ def email():
 @app.route('/project/number', methods=['GET', 'POST'])
 def number():
     if request.method == 'POST':
-        """
         account_sid = 'AC07c0d11530577d396f167e884e17de61'
-        auth_token = 'c6dc954f68fac31a0ee7a55b397c7dcb'
+        auth_token = '0754d56e9d165a6b0289157e335cc76e'
         client = Client(account_sid, auth_token)
 
         msg = client.messages.create(
-            to= session['number'],
+            to=session['number'],
             from_="+12512552093",
             body="2FA CODE: {}".format(session['2fa'])
-        )"""
+        )
 
         session['choice'] = 'number'
         return redirect(url_for('submitcode'))
@@ -200,8 +350,11 @@ def submitcode():
                            (session['username'], login, 'did not logout', info['city'], info['country'],
                             info['continent'], str(failed_attempts)))
             mysql.connection.commit()
-
-            return redirect(url_for('home'))
+            print(session['admin'])
+            if session['admin']:
+                return redirect(url_for('home_admin'))
+            else:
+                return redirect(url_for('home'))
 
     return render_template('submitcode.html', msg='', choice=session['choice'])
 
@@ -216,7 +369,7 @@ def logout():
     # Remove session data, this will log the user out session.pop('loggedin', None)
     session.pop('id', None)
     session.pop('username', None)  # Redirect to login page
-    return redirect(url_for('login'))
+    return redirect(url_for('base'))
 
 
 @app.route('/project/register', methods=['GET', 'POST'])
@@ -343,6 +496,40 @@ def login_activity_list():
     for i in auditinfo:
         list_info.append((i['login'], i['logout'], i['city'], i['country'], i['continent'], i['failed_attempts']))
     print(list_info)
+
+    logindates = []
+    faileddata= []
+
+    for i in list_info:
+        if i[5] != 0:
+            faileddata.append(i[5])
+            logindates.append(i[0][9:])
+
+    test = []
+    for i in range(len(logindates)):
+        if logindates[i] in logindates:
+            logindates[i] = logindates[i] + '-' + str(i)
+
+    print(logindates)
+    print(faileddata)
+
+
+
+    x1 = []
+    y1 = []
+    for i in logindates:
+        x1.append(i)
+    for i in faileddata:
+        y1.append(i)
+
+    plt.figure(figsize=(12,6))
+    plt.tight_layout()
+    plt.plot(x1,y1,label = "line")
+
+    plt.xlabel('Login')
+    plt.ylabel('Number of failed logins')
+    plt.title('Number of failed logins')
+    plt.savefig('static/graph.png')
 
     return render_template('login_activity_list.html', msg=msg, info=list_info, start="05:00:00", end="23:59:00")
 

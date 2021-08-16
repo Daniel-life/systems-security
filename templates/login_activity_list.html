@@ -2,11 +2,13 @@
 {% block title %} Login Activity List {% endblock %}
 {% block content %}
 <h2>Login Activity List</h2>
+
 <div class="w3-container">
 <p>Your account details are below:</p>
 <table class="auditinfo">
+
     {% for audit in info %}
-    {% if start <= audit[0] <= end and audit[3] == "Singapore" %}
+    {% if not start <= audit[0] <= end or audit[3] != 'Singapore' or audit[5] >= 3 %}
     <tr>
         {% if start <= audit[0] <= end %}
         <td class="info-left">login time:</td>
@@ -38,12 +40,18 @@
         <td class="info-highlight">{{ audit[4] }}</td>
     </tr>
     <tr>
-        <td class="info-left">Failed attempts:</td>
-        <td class="info-highlight">{{ audit[5] }}</td>
+        {% if audit[5] >= 3 %}
+        <td class="info-left bottom-border" style="color: red">Failed attempts:</td>
+        <td class="info-highlight bottom-border" style="color: red">{{ audit[5] }}</td>
+        {% else %}
+        <td class="info-left bottom-border">Failed attempts:</td>
+        <td class="info-highlight bottom-border">{{ audit[5] }}</td>
+        {% endif %}
     </tr>
-
     {% endif %}
     {% endfor %}
 </table>
+
 </div>
+<img src="/static/graph.png" style="width:90%">
 {% endblock %}
