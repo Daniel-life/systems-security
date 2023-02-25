@@ -331,10 +331,10 @@ def submitcode():
             session['failed_attempts'] = failed_attempts
 
             # Your API key, available from your account page
-            YOUR_GEOLOCATION_KEY = '3b1399cd7b1947a0a2b8fd3a3f92e285'
+            YOUR_GEOLOCATION_KEY = '264dc73d2ac44acf98985ed04c85b2cf'
 
             # URL to send the request to
-            request_url = 'https://ipgeolocation.abstractapi.com/v1/?api_key=' + YOUR_GEOLOCATION_KEY
+            request_url = 'https://api.ipgeolocation.io/ipgeo?apiKey=' + YOUR_GEOLOCATION_KEY
             # Send request and decode the result
             response = requests.get(request_url)
             result = json.loads(response.content)
